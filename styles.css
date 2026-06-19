@@ -218,7 +218,8 @@ body.no-tabs .view { padding-bottom: 0; }
   display: grid; grid-auto-flow: column; grid-auto-columns: 1fr;
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: var(--radius-pill);
+  border-radius: 22px;
+  overflow: hidden;
   height: 64px;
   padding: 7px;
   box-shadow: var(--shadow-lg);

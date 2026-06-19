@@ -1341,7 +1341,7 @@ function viewLogin() {
         el('div', {}, [
           el('h1', {}, 'DailyWater'),
           el('p', { class: 'login-sub' }, t('app_tagline')),
-          el('div', { class: 'build-tag' }, '✦ New look · build 4')
+          el('div', { class: 'build-tag' }, '✦ New look · build 5')
         ]),
         el('div', { class: 'lang-row' }, ['en','hi','mr'].map(lng => el('button', {
           class: 'lang-btn' + ((Store.data.language || 'en') === lng ? ' active' : ''),
