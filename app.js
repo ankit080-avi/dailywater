@@ -1344,7 +1344,7 @@ function viewLogin() {
         el('div', {}, [
           el('h1', {}, 'DailyWater'),
           el('p', { class: 'login-sub' }, t('app_tagline')),
-          el('div', { class: 'build-tag' }, '✦ New look · build 6')
+          el('div', { class: 'build-tag' }, '✦ New look · build 7')
         ]),
         el('div', { class: 'lang-row' }, ['en','hi','mr'].map(lng => el('button', {
           class: 'lang-btn' + ((Store.data.language || 'en') === lng ? ' active' : ''),
@@ -2942,7 +2942,7 @@ function openPhotoLightbox(src, caption) {
 const BOTTLE_SIZES_ML = [250, 500, 1000, 2000, 5000, 20000];
 // Jar/deposit tracking writes jars_held + jar_deposit columns. Keep false until the
 // ALTER TABLE migration has run, then flip to true — otherwise user upserts fail.
-const JARS_ENABLED = false;
+const JARS_ENABLED = true;
 function customerForm(existing) {
   const isEdit = !!existing;
   // Quota check — block new customers if owner has hit their limit. Edits are allowed.
