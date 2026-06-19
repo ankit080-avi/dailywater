@@ -133,7 +133,9 @@ const Store = {
           customer_limit: u.customer_limit != null ? Number(u.customer_limit) : (u.role === 'owner' ? 10 : null),
           subscription_plan: u.subscription_plan || null,
           subscription_started_at: u.subscription_started_at || null,
-          subscription_expires_at: u.subscription_expires_at || null
+          subscription_expires_at: u.subscription_expires_at || null,
+          jars_held: u.jars_held != null ? Number(u.jars_held) : 0,
+          jar_deposit: u.jar_deposit != null ? Number(u.jar_deposit) : 0
         })),
         deliveries: (deliveries.data || []).map(d => ({
           id: d.id, customerId: d.customerId, date: d.date, status: d.status,
@@ -266,7 +268,8 @@ const Store = {
       customer_limit: u.customer_limit != null ? u.customer_limit : (u.role === 'owner' ? 10 : null),
       subscription_plan: u.subscription_plan || null,
       subscription_started_at: u.subscription_started_at || null,
-      subscription_expires_at: u.subscription_expires_at || null
+      subscription_expires_at: u.subscription_expires_at || null,
+      ...(JARS_ENABLED ? { jars_held: u.jars_held || 0, jar_deposit: u.jar_deposit || 0 } : {})
     }))));
 
     if (d.deliveries.length) tasks.push(sb.from('deliveries').upsert(d.deliveries.map(x => stamp({
@@ -1341,7 +1344,7 @@ function viewLogin() {
         el('div', {}, [
           el('h1', {}, 'DailyWater'),
           el('p', { class: 'login-sub' }, t('app_tagline')),
-          el('div', { class: 'build-tag' }, '✦ New look · build 5')
+          el('div', { class: 'build-tag' }, '✦ New look · build 6')
         ]),
         el('div', { class: 'lang-row' }, ['en','hi','mr'].map(lng => el('button', {
           class: 'lang-btn' + ((Store.data.language || 'en') === lng ? ' active' : ''),
@@ -1694,6 +1697,103 @@ function logout() {
   // Drop remembered credentials so the user sees a fresh login screen
   try { localStorage.removeItem('dailywater-creds'); } catch (e) {}
   navigate('login');
+}
+
+/* ─── Customer self-onboarding (QR / join link: ?join=<ownerId>) ─── */
+function viewJoin(ownerId) {
+  document.body.classList.add('no-tabs');
+  $tabbar.hidden = true;
+  $waBtn.hidden = true;
+  const state = { mobile: '', size: BOTTLE_SIZES_ML[0], count: 1, freq: 'daily' };
+  const ownerName = () => {
+    const ds = Store.data.dairySettings && Store.data.dairySettings[ownerId];
+    const o = Store.data.users.find(u => u.id === ownerId && u.role === 'owner');
+    return (ds && ds.businessName) || (o && o.name) || 'Water delivery';
+  };
+  const render = () => {
+    clear($view);
+    const root = el('div', { class: 'login' }, [
+      el('div', { class: 'login-hero' }, [
+        el('div', { class: 'login-logo' }, '💧'),
+        el('div', {}, [
+          el('h1', {}, ownerName()),
+          el('p', { class: 'login-sub' }, 'Register for water delivery')
+        ])
+      ])
+    ]);
+    const form = el('form', { class: 'login-form', onsubmit: (e) => { e.preventDefault(); submit(); } });
+    form.appendChild(el('div', { class: 'field' }, [
+      el('label', {}, 'Your name'),
+      el('input', { class: 'input', id: 'jn-name', autofocus: true })
+    ]));
+    form.appendChild(el('div', { class: 'field' }, [
+      el('label', {}, 'Mobile (10 digits)'),
+      el('div', { class: 'input-prefix-row' }, [
+        el('span', { class: 'input-prefix' }, '+91'),
+        el('input', { class: 'input', id: 'jn-mobile', type: 'tel', inputmode: 'numeric', maxlength: 10,
+          value: state.mobile, oninput: (e) => { state.mobile = e.target.value.replace(/\D/g, '').slice(0, 10); e.target.value = state.mobile; } })
+      ])
+    ]));
+    form.appendChild(el('div', { class: 'field' }, [
+      el('label', {}, 'Delivery address'),
+      el('input', { class: 'input', id: 'jn-addr' })
+    ]));
+    form.appendChild(el('div', { class: 'field' }, [
+      el('label', {}, 'Bottle size'),
+      el('select', { class: 'select', id: 'jn-size' }, BOTTLE_SIZES_ML.map(sz =>
+        el('option', { value: sz, selected: sz === state.size }, fmtQty(sz) + ' bottle')))
+    ]));
+    form.appendChild(el('div', { class: 'field' }, [
+      el('label', {}, 'Bottles per delivery'),
+      el('select', { class: 'select', id: 'jn-count' }, [1,2,3,4,5,6,7,8,9,10].map(n =>
+        el('option', { value: n, selected: n === state.count }, String(n))))
+    ]));
+    form.appendChild(el('div', { class: 'field' }, [
+      el('label', {}, 'Delivery frequency'),
+      el('select', { class: 'select', id: 'jn-freq' }, [
+        { v: 'daily', l: 'Daily' }, { v: 'alternate', l: 'Alternate days' },
+        { v: 'weekly', l: 'Weekly' }, { v: 'monthly', l: 'Monthly' }
+      ].map(o => el('option', { value: o.v, selected: o.v === state.freq }, o.l)))
+    ]));
+    form.appendChild(el('div', { class: 'field' }, [
+      el('label', {}, 'Set a password'),
+      el('input', { class: 'input', id: 'jn-pw', type: 'password' })
+    ]));
+    form.appendChild(el('button', { class: 'btn btn-primary btn-block', type: 'submit' }, 'Join & continue'));
+    root.appendChild(form);
+    $view.appendChild(root);
+  };
+  const submit = async () => {
+    const name = (document.getElementById('jn-name').value || '').trim();
+    const mobile = (document.getElementById('jn-mobile').value || '').replace(/\D/g, '');
+    const addr = (document.getElementById('jn-addr').value || '').trim();
+    const size = +document.getElementById('jn-size').value;
+    const count = +document.getElementById('jn-count').value || 1;
+    const freq = document.getElementById('jn-freq').value || 'daily';
+    const pw = document.getElementById('jn-pw').value;
+    if (!name) return toast('Enter your name', 'error');
+    if (mobile.length !== 10) return toast('Enter 10-digit mobile', 'error');
+    if (!pw || pw.length < 4) return toast(t('password_min'), 'error');
+    const owner = Store.data.users.find(u => u.id === ownerId && u.role === 'owner');
+    if (!owner) return toast('Invalid or expired invite link', 'error');
+    if (Store.data.users.some(u => u.mobile === mobile)) return toast('That mobile is already registered — please log in instead', 'error');
+    const newId = uid();
+    const qty = size * count;
+    const planLabel = ({ daily: 'Daily', alternate: 'Alternate', weekly: 'Weekly', monthly: 'Monthly' })[freq] + ' ' + (count > 1 ? count + ' × ' : '') + fmtQty(size);
+    const user = {
+      id: newId, mobile, name, role: 'customer', status: 'approved', ownerId,
+      address: addr, dailyMl: qty, frequency: freq, plan: planLabel,
+      created_at: new Date().toISOString(), password_hash: await hashPassword(pw, newId)
+    };
+    Store.data.users.push(user);
+    Store.save();
+    notify(ownerId, 'order', 'New customer joined', name + ' registered via your invite link.');
+    try { history.replaceState({}, '', location.pathname); } catch (e) {}
+    setSession(user);
+    toast('Welcome, ' + name.split(' ')[0] + '!', 'success');
+    navigate('customer');
+  };
+  render();
 }
 
 /* ─── Tab bar builder ──────────────────────────────────────── */
@@ -2838,6 +2938,11 @@ function openPhotoLightbox(src, caption) {
   document.addEventListener('keydown', onKey);
 }
 
+// Bottle/jar sizes (ml) offered across the app — edit to match your inventory.
+const BOTTLE_SIZES_ML = [250, 500, 1000, 2000, 5000, 20000];
+// Jar/deposit tracking writes jars_held + jar_deposit columns. Keep false until the
+// ALTER TABLE migration has run, then flip to true — otherwise user upserts fail.
+const JARS_ENABLED = false;
 function customerForm(existing) {
   const isEdit = !!existing;
   // Quota check — block new customers if owner has hit their limit. Edits are allowed.
@@ -2889,8 +2994,7 @@ function customerForm(existing) {
     el('label', {}, 'Address'),
     el('input', { class: 'input', id: 'cf-addr', type: 'text', value: existing?.address || '' })
   ]));
-  // Bottles come in multiple sizes. Edit BOTTLE_SIZES (in ml) to match what you sell.
-  const BOTTLE_SIZES = [250, 500, 1000, 2000, 5000, 20000];
+  const BOTTLE_SIZES = BOTTLE_SIZES_ML;
   // Derive the saved size + count from an existing customer's dailyMl
   // (largest configured size that divides it evenly; otherwise treat it as a one-off size).
   let curSize = BOTTLE_SIZES[0], curCount = 1;
@@ -2921,6 +3025,19 @@ function customerForm(existing) {
       value: o.v,
       selected: (existing?.frequency || 'daily') === o.v
     }, o.l)))
+  ]));
+  const formBoys = Store.data.users.filter(u => u.role === 'delivery_boy' && u.ownerId === (App.user && App.user.role === 'owner' ? App.user.id : existing?.ownerId));
+  if (formBoys.length) {
+    wrap.appendChild(el('div', { class: 'field' }, [
+      el('label', {}, 'Delivery boy'),
+      el('select', { class: 'select', id: 'cf-boy' },
+        [el('option', { value: '', selected: !existing?.assignedBoyId }, 'Unassigned')]
+          .concat(formBoys.map(b => el('option', { value: b.id, selected: existing?.assignedBoyId === b.id }, b.name))))
+    ]));
+  }
+  if (JARS_ENABLED) wrap.appendChild(el('div', { class: 'field' }, [
+    el('label', {}, 'Jar / bottle deposit collected (₹)'),
+    el('input', { class: 'input', id: 'cf-deposit', type: 'number', inputmode: 'numeric', min: '0', value: existing?.jar_deposit || 0 })
   ]));
   wrap.appendChild(el('button', { class: 'btn btn-primary btn-block', onclick: () => save() }, isEdit ? 'Save changes' : 'Add customer'));
   if (isEdit) {
@@ -2977,6 +3094,8 @@ function customerForm(existing) {
     const count = +document.getElementById('cf-count').value || 1;
     const qty = size * count;
     const freq = document.getElementById('cf-freq').value || 'daily';
+    const deposit = +((document.getElementById('cf-deposit') || {}).value) || 0;
+    const boyId = (document.getElementById('cf-boy') || {}).value || null;
     if (!name) return toast('Enter name', 'error');
     if (mobile.length !== 10) return toast('Enter 10-digit mobile', 'error');
     // Mobile must be globally unique (one customer record per phone across all dairies)
@@ -2984,7 +3103,7 @@ function customerForm(existing) {
     if (conflict) return toast('That mobile is already used by another account', 'error');
     const planLabel = ({ daily: 'Daily', alternate: 'Alternate', weekly: 'Weekly', monthly: 'Monthly' })[freq] + ' ' + (count > 1 ? count + ' × ' : '') + fmtQty(size);
     if (existing) {
-      Object.assign(existing, { name, mobile, address: addr, dailyMl: qty, frequency: freq, plan: planLabel, photo: photoData || null });
+      Object.assign(existing, { name, mobile, address: addr, dailyMl: qty, frequency: freq, plan: planLabel, photo: photoData || null, jar_deposit: deposit, assignedBoyId: boyId });
     } else {
       // Stamp ownerId so the new customer belongs to the current dairy.
       // created_at is the anchor for non-daily frequency calculations — set locally so isDeliveryDue
@@ -2992,7 +3111,8 @@ function customerForm(existing) {
       const ownerId = App.user && App.user.role === 'owner' ? App.user.id : null;
       Store.data.users.push({
         id: uid(), name, mobile, address: addr, dailyMl: qty, frequency: freq, plan: planLabel,
-        role: 'customer', photo: photoData || null, ownerId,
+        role: 'customer', photo: photoData || null, ownerId, assignedBoyId: boyId,
+        jar_deposit: deposit, jars_held: 0,
         created_at: new Date().toISOString()
       });
     }
@@ -3116,6 +3236,21 @@ function customerDetail(id) {
     el('div', { class: 'stat' }, [
       el('div', { class: 'stat-label' }, 'Month bill'),
       el('div', { class: 'stat-value' }, fmtMoney(bill.total))
+    ])
+  ]));
+  // Jar / bottle tracking — gated until the jars_held/jar_deposit migration is run
+  if (JARS_ENABLED) wrap.appendChild(el('div', { class: 'card', style: 'margin-bottom:14px' }, [
+    el('div', { class: 'card-row' }, [
+      el('div', { style: 'flex:1' }, [
+        el('div', { style: 'font-weight:700;font-size:15px' }, '🫙 Jars out: ' + (c.jars_held || 0)),
+        el('div', { class: 'text-muted', style: 'font-size:13px' }, 'Deposit held: ' + fmtMoney(c.jar_deposit || 0))
+      ]),
+      el('div', { class: 'row gap-sm' }, [
+        el('button', { class: 'btn btn-sm btn-ghost', 'aria-label': 'Empty returned',
+          onclick: () => { c.jars_held = Math.max(0, (c.jars_held || 0) - 1); Store.save(); customerDetail(id); } }, '− returned'),
+        el('button', { class: 'btn btn-sm btn-primary', 'aria-label': 'Jar given',
+          onclick: () => { c.jars_held = (c.jars_held || 0) + 1; Store.save(); customerDetail(id); } }, '+ gave')
+      ])
     ])
   ]));
   wrap.appendChild(el('button', {
@@ -3903,6 +4038,7 @@ function ownerSettings(target) {
     { key: 'boys',     icon: '🚴', title: 'Delivery Boys',      subtitle: 'Manage your delivery team' },
     { key: 'holidays', icon: '🗓', title: 'Holidays',           subtitle: "Days you don't deliver" },
     { key: 'products', icon: '💧', title: 'Products (Extras)',  subtitle: 'Cans, bottles, dispensers, etc.' },
+    { key: 'invite',   icon: '🔗', title: 'Invite customers',   subtitle: 'Share a join link / QR code' },
     { key: 'theme',    icon: '🎨', title: 'Appearance',         subtitle: 'Light, dark, or auto' },
     { key: 'lang',     icon: '🌐', title: 'Language',           subtitle: 'English, Hindi, Marathi' }
   ];
@@ -3939,6 +4075,37 @@ function ownerSettings(target) {
 
   const s = Store.data.settings;
   const me = App.user;
+
+  // ─── Invite customers (QR / join link) ───────────────────
+  if (_ownerSettingsSection === 'invite') {
+    const joinUrl = location.origin + location.pathname + '?join=' + App.user.id;
+    const biz = (s && s.businessName) || 'our water service';
+    const card = el('div', { class: 'card' }, [
+      el('div', { class: 'text-muted', style: 'font-size:13px;margin-bottom:14px' },
+        'Share this with customers — they fill in their details and are added to your list automatically.')
+    ]);
+    const qrImg = makeQRImage(joinUrl);
+    if (qrImg) {
+      qrImg.style.cssText = 'width:190px;height:190px;border-radius:12px;image-rendering:pixelated';
+      card.appendChild(el('div', { style: 'display:flex;justify-content:center;margin-bottom:16px' }, [qrImg]));
+    }
+    card.appendChild(el('div', { class: 'field' }, [
+      el('label', {}, 'Join link'),
+      el('input', { class: 'input', readonly: true, value: joinUrl, onclick: (e) => e.target.select() })
+    ]));
+    card.appendChild(el('button', {
+      class: 'btn btn-ghost btn-block', style: 'margin-top:4px',
+      onclick: () => { try { navigator.clipboard.writeText(joinUrl); } catch (e) {} toast('Link copied', 'success'); }
+    }, '📋 Copy link'));
+    card.appendChild(el('a', {
+      class: 'btn btn-primary btn-block', style: 'margin-top:8px',
+      href: 'https://wa.me/?text=' + encodeURIComponent('Join ' + biz + ' for water delivery — register here: ' + joinUrl),
+      target: '_blank', rel: 'noopener'
+    }, '💬 Share on WhatsApp'));
+    page.appendChild(card);
+    $view.appendChild(page);
+    return;
+  }
 
   // ─── Profile ─────────────────────────────────────────────
   if (_ownerSettingsSection === 'profile') {
@@ -6087,7 +6254,10 @@ function viewOwnerLocked() {
 Store.loadFromCache();
 applyTheme(Store.data?.theme || 'auto');
 const session = restoreSession();
-if (session) {
+const joinParam = (() => { try { return new URLSearchParams(location.search).get('join'); } catch (e) { return null; } })();
+if (joinParam && !session) {
+  viewJoin(joinParam);
+} else if (session) {
   App.user = session;
   navigate(session.role);
 } else {
