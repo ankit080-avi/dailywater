@@ -1,0 +1,8 @@
+﻿{
+  "appId": "com.dailywater.app",
+  "appName": "DailyWater",
+  "webDir": "www",
+  "android": {
+    "backgroundColor": "#F4FAFE"
+  }
+}

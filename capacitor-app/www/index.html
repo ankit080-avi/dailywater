@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+<title>DailyWater — Water Delivery</title>
+<meta name="description" content="Daily water delivery, billing, and customer management for water suppliers."/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link rel="preload" href="styles.css?v=27" as="style"/>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@600&display=swap" rel="stylesheet" media="print" onload="this.media='all'"/>
+<noscript><link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@600&display=swap" rel="stylesheet"/></noscript>
+<link rel="stylesheet" href="styles.css?v=27"/>
+<link rel="manifest" href="manifest.webmanifest"/>
+<meta name="theme-color" content="#0288D1"/>
+<link rel="apple-touch-icon" href="icon-192.png"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="default"/>
+<meta name="apple-mobile-web-app-title" content="DailyWater"/>
+</head>
+<body>
+
+<div id="app" class="app-shell">
+  <!-- Views are rendered into #view by app.js -->
+  <main id="view" class="view"></main>
+
+  <!-- Bottom tab bar (shown on dashboards only) -->
+  <nav id="tabbar" class="tabbar" hidden></nav>
+</div>
+
+<!-- Modal layer -->
+<div id="modal" class="modal" hidden>
+  <div class="modal-backdrop" data-close></div>
+  <div class="modal-sheet" id="modalSheet" role="dialog" aria-modal="true">
+    <button class="modal-close" data-close aria-label="Close">&times;</button>
+    <div id="modalBody"></div>
+  </div>
+</div>
+
+<!-- Toast layer -->
+<div id="toastHost" class="toast-host" aria-live="polite"></div>
+
+<!-- Floating WhatsApp button -->
+<a id="waBtn" class="wa-fab" href="#" target="_blank" rel="noopener" hidden aria-label="Contact on WhatsApp">
+  <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M19.05 4.91A10 10 0 0 0 4.27 18.08L3 22l4.04-1.06A10 10 0 1 0 19.05 4.91Zm-7.07 15.43h-.01a8.3 8.3 0 0 1-4.23-1.16l-.3-.18-2.4.63.64-2.34-.2-.31a8.32 8.32 0 1 1 6.5 3.36Zm4.57-6.23c-.25-.13-1.47-.73-1.7-.81-.23-.08-.4-.13-.56.13-.17.25-.65.81-.8.97-.15.17-.3.19-.55.06-.25-.12-1.06-.39-2.02-1.24a7.6 7.6 0 0 1-1.4-1.74c-.15-.25-.02-.39.11-.51.11-.11.25-.3.38-.45.13-.15.17-.25.25-.42.08-.17.04-.31-.02-.44-.06-.13-.56-1.36-.77-1.86-.2-.49-.41-.42-.56-.43h-.48c-.17 0-.44.06-.67.31s-.88.86-.88 2.1.9 2.43 1.02 2.6c.13.17 1.78 2.72 4.31 3.81.6.26 1.08.41 1.45.53.61.2 1.16.17 1.6.1.49-.07 1.47-.6 1.68-1.18.21-.58.21-1.07.15-1.18-.06-.1-.23-.17-.48-.3Z"/></svg>
+</a>
+
+<script src="qrcode.min.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="firebase-config.js?v=27"></script>
+<script src="app.js?v=27" defer></script>
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js').catch(() => {});
+    });
+  }
+</script>
+</body>
+</html>

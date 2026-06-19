@@ -1,0 +1,18 @@
+# Dependencies
+node_modules/
+capacitor-app/node_modules/
+
+# Capacitor / Android build outputs
+capacitor-app/android/.gradle/
+capacitor-app/android/build/
+capacitor-app/android/app/build/
+capacitor-app/android/capacitor-cordova-android-plugins/build/
+capacitor-app/android/local.properties
+capacitor-app/android/.idea/
+*.iml
+
+# Logs & misc
+*.log
+build.log
+.DS_Store
+Thumbs.db

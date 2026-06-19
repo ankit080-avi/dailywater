@@ -1,0 +1,15 @@
+{
+  "name": "DailyWater — Water Delivery",
+  "short_name": "DailyWater",
+  "description": "Daily water delivery, billing, and customer management for water suppliers.",
+  "start_url": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F4FAFE",
+  "theme_color": "#0288D1",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
