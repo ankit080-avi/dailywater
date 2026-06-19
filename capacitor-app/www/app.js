@@ -7,9 +7,9 @@
 'use strict';
 
 /* ─── Supabase client ─────────────────────────────────────── */
-const SUPABASE_URL = 'https://kmauurezrgovucpbkekq.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_a3klASpmaN__EX38mCq9Ew_l_cUpUr3';
-let sb = null; // TODO(DailyWater): create your own Supabase project and set SUPABASE_URL/KEY above
+const SUPABASE_URL = 'https://udclccwehhnhstngvgam.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_HDM1tlMFeWoSjJ2pMEBihQ_fCm57d3Z';
+let sb = null; // DailyWater's own Supabase project (separate from MilkMate)
 try {
   if (window.supabase && window.supabase.createClient) {
     sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
@@ -1181,16 +1181,22 @@ window.addEventListener('popstate', () => {
 });
 
 function openModal(title, contentNode) {
+  const wasOpen = !$modal.hidden;
   clear($modalBody);
   if (title) $modalBody.appendChild(el('h2', {}, title));
   $modalBody.appendChild(contentNode);
   $modal.hidden = false;
   document.body.style.overflow = 'hidden';
-  pushBackHandler(() => {
-    $modal.hidden = true;
-    document.body.style.overflow = '';
-    clear($modalBody);
-  });
+  // When swapping content into an already-open modal (e.g. detail → edit form),
+  // reuse the existing back handler instead of stacking a second one — a stray
+  // popstate would otherwise pop the just-added handler and tear the modal down.
+  if (!wasOpen) {
+    pushBackHandler(() => {
+      $modal.hidden = true;
+      document.body.style.overflow = '';
+      clear($modalBody);
+    });
+  }
 }
 function closeModal() {
   if ($modal.hidden) return;
@@ -1334,7 +1340,8 @@ function viewLogin() {
         el('div', { class: 'login-logo' }, '💧'),
         el('div', {}, [
           el('h1', {}, 'DailyWater'),
-          el('p', { class: 'login-sub' }, t('app_tagline'))
+          el('p', { class: 'login-sub' }, t('app_tagline')),
+          el('div', { class: 'build-tag' }, '✦ New look · build 4')
         ]),
         el('div', { class: 'lang-row' }, ['en','hi','mr'].map(lng => el('button', {
           class: 'lang-btn' + ((Store.data.language || 'en') === lng ? ' active' : ''),
@@ -3096,7 +3103,7 @@ function customerDetail(id) {
   ]));
   wrap.appendChild(el('button', {
     class: 'btn btn-ghost btn-block', style: 'margin-top:8px',
-    onclick: () => { closeModal(); customerForm(c); }
+    onclick: () => customerForm(c)
   }, 'Edit details'));
   wrap.appendChild(el('a', {
     class: 'btn btn-primary btn-block', style: 'margin-top:8px',
