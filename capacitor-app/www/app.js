@@ -2889,11 +2889,26 @@ function customerForm(existing) {
     el('label', {}, 'Address'),
     el('input', { class: 'input', id: 'cf-addr', type: 'text', value: existing?.address || '' })
   ]));
+  // Bottles come in multiple sizes. Edit BOTTLE_SIZES (in ml) to match what you sell.
+  const BOTTLE_SIZES = [250, 500, 1000, 2000, 5000, 20000];
+  // Derive the saved size + count from an existing customer's dailyMl
+  // (largest configured size that divides it evenly; otherwise treat it as a one-off size).
+  let curSize = BOTTLE_SIZES[0], curCount = 1;
+  if (existing?.dailyMl) {
+    const match = [...BOTTLE_SIZES].sort((a,b) => b - a).find(s => existing.dailyMl % s === 0);
+    if (match) { curSize = match; curCount = existing.dailyMl / match; }
+    else { curSize = existing.dailyMl; curCount = 1; }
+  }
+  const sizeList = BOTTLE_SIZES.includes(curSize) ? BOTTLE_SIZES : [curSize, ...BOTTLE_SIZES];
   wrap.appendChild(el('div', { class: 'field' }, [
-    el('label', {}, 'Quantity per delivery'),
-    el('select', { class: 'select', id: 'cf-qty' }, [250, 500, 750, 1000, 1500, 2000, 3000].map(q =>
-      el('option', { value: q, selected: existing?.dailyMl === q }, fmtQty(q))
-    ))
+    el('label', {}, 'Bottle size'),
+    el('select', { class: 'select', id: 'cf-size' }, sizeList.map(s =>
+      el('option', { value: s, selected: s === curSize }, fmtQty(s) + ' bottle')))
+  ]));
+  wrap.appendChild(el('div', { class: 'field' }, [
+    el('label', {}, 'Bottles per delivery'),
+    el('select', { class: 'select', id: 'cf-count' }, [1,2,3,4,5,6,7,8,9,10].map(n =>
+      el('option', { value: n, selected: n === curCount }, String(n))))
   ]));
   wrap.appendChild(el('div', { class: 'field' }, [
     el('label', {}, 'Delivery frequency'),
@@ -2958,14 +2973,16 @@ function customerForm(existing) {
     const name = document.getElementById('cf-name').value.trim();
     const mobile = document.getElementById('cf-mobile').value.replace(/\D/g, '');
     const addr = document.getElementById('cf-addr').value.trim();
-    const qty = +document.getElementById('cf-qty').value;
+    const size = +document.getElementById('cf-size').value;
+    const count = +document.getElementById('cf-count').value || 1;
+    const qty = size * count;
     const freq = document.getElementById('cf-freq').value || 'daily';
     if (!name) return toast('Enter name', 'error');
     if (mobile.length !== 10) return toast('Enter 10-digit mobile', 'error');
     // Mobile must be globally unique (one customer record per phone across all dairies)
     const conflict = Store.data.users.find(u => u.mobile === mobile && u.id !== existing?.id);
     if (conflict) return toast('That mobile is already used by another account', 'error');
-    const planLabel = ({ daily: 'Daily', alternate: 'Alternate', weekly: 'Weekly', monthly: 'Monthly' })[freq] + ' ' + fmtQty(qty);
+    const planLabel = ({ daily: 'Daily', alternate: 'Alternate', weekly: 'Weekly', monthly: 'Monthly' })[freq] + ' ' + (count > 1 ? count + ' × ' : '') + fmtQty(size);
     if (existing) {
       Object.assign(existing, { name, mobile, address: addr, dailyMl: qty, frequency: freq, plan: planLabel, photo: photoData || null });
     } else {
@@ -5184,6 +5201,21 @@ function viewDeliveryBoy() {
     return;
   }
 
+  // Free Google Maps navigation for the whole route (no API key/billing — just a deep link).
+  // Stops are passed in list order; Maps can re-optimise on the device.
+  const navStops = customers.filter(c => c.address && !isPaused(c.id, today));
+  if (navStops.length) {
+    const pts = navStops.map(c => encodeURIComponent(c.address));
+    const dest = pts[pts.length - 1];
+    const waypoints = pts.slice(0, -1).slice(0, 9).join('%7C'); // cap at 9 waypoints (URL limit)
+    const routeUrl = 'https://www.google.com/maps/dir/?api=1&travelmode=driving&destination=' + dest +
+      (waypoints ? '&waypoints=' + waypoints : '');
+    page.appendChild(el('a', {
+      class: 'btn btn-primary btn-block', style: 'margin-bottom:14px',
+      href: routeUrl, target: '_blank', rel: 'noopener'
+    }, '🧭 Navigate route · ' + navStops.length + ' stops'));
+  }
+
   const list = el('div', { class: 'list' });
   customers.forEach(c => {
     const paused = isPaused(c.id, today);
@@ -5220,8 +5252,12 @@ function viewDeliveryBoy() {
       avatarFor(c),
       el('div', { class: 'li-body' }, [
         el('div', { class: 'li-title' }, c.name),
-        el('div', { class: 'li-sub' },
-          fmtQty(c.dailyMl) + ' · ' + (c.address ? c.address.slice(0, 28) : '+91 ' + c.mobile))
+        c.address
+          ? el('a', {
+              class: 'li-sub', href: 'https://www.google.com/maps/dir/?api=1&travelmode=driving&destination=' + encodeURIComponent(c.address),
+              target: '_blank', rel: 'noopener', style: 'color:var(--primary)'
+            }, '📍 ' + fmtQty(c.dailyMl) + ' · ' + c.address.slice(0, 26))
+          : el('div', { class: 'li-sub' }, fmtQty(c.dailyMl) + ' · +91 ' + c.mobile)
       ]),
       actions
     ]));
